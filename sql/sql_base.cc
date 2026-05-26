@@ -2688,7 +2688,7 @@ int
 Locked_tables_list::unlock_locked_tables(THD *thd)
 {
   int error;
-  DBUG_ASSERT(!thd->in_sub_stmt &&
+  DBUG_ASSERT(thd->in_sub_stmt_is_ok_for_sub_stmt() &&
               !(thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
   /*
     Sic: we must be careful to not close open tables if
@@ -3922,6 +3922,25 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
   case MDL_key::PROCEDURE:
     {
       sp_head *sp;
+      if (thd->lex->contains_dynamic_sql())
+      {
+        /*
+          Some routine in the prelocking set of this statement contains
+          dynamic SQL, so the statement is executed without prelocking
+          (see Query_tables_list::requires_prelocking()).
+          Do not put MDL locks on the routines and do not collect their
+          tables: every routine opens (and locks) its tables itself, on a
+          per-statement basis, at its execution time.
+          Note, the first element of the prelocking set is the routine
+          called by the current statement directly. It's still cached here,
+          like it's done for a top level CALL.
+        */
+        if (rt == prelocking_ctx->sroutines_list.first &&
+            rt->sp_cache_routine(thd, &sp))
+          DBUG_RETURN(TRUE);
+        DBUG_RETURN(FALSE);
+      }
+
       /*
         Try to get MDL lock on the routine.
         Note that we do not take locks on top-level CALLs as this can
@@ -3932,6 +3951,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
       if (rt != prelocking_ctx->sroutines_list.first ||
           mdl_type != MDL_key::PROCEDURE)
       {
+        MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
         /*
           TODO: If this is a package routine, we should not put MDL
           TODO: on the routine itself. We should put only the package MDL.
@@ -3942,6 +3962,29 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
         /* Ensures the routine is up-to-date and cached, if exists. */
         if (rt->sp_cache_routine(thd, &sp))
           DBUG_RETURN(TRUE);
+        if (sp && sp->contains_dynamic_sql())
+        {
+          /*
+            The routine contains dynamic SQL. It can be:
+            - a routine used in a statement, e.g.
+                SET spvar= f1();       -- f1() contains a prepared statement
+            - or a routine reachable from another routine, e.g.
+                SET spvar= f1();       -- f1() calls p2()
+                                       -- p2() contains a prepared statement
+            In both cases the tables used by the dynamic statements are
+            not known in advance, so the statement cannot be prelocked.
+            Mark the top level LEX as containing dynamic SQL: the routines
+            will open (and lock) their tables themselves, on a per-statement
+            basis, like a PROCEDURE does.
+            Note, the prelocking algorithm could already add some tables
+            to the table list (e.g. the tables of the routine which called
+            the routine being processed). They are removed by the caller,
+            see open_tables().
+          */
+          thd->lex->set_contains_dynamic_sql();
+          thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+          DBUG_RETURN(FALSE);
+        }
 
         /* Remember the version of the routine in the parse tree. */
         if (check_and_update_routine_version(thd, rt, sp))
@@ -4017,6 +4060,12 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
       DML we always use triggers together with their tables, and thus don't
       need to take separate metadata locks on them.
     */
+    if (thd->lex->contains_dynamic_sql())
+    {
+      // Can come here in tricky cases covered in ps_in_func-trigger.test
+      my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "Dynamic SQL");
+      DBUG_RETURN(TRUE);
+    }
     break;
   default:
     /* Impossible type value. */
@@ -4900,6 +4949,29 @@ restart:
             been emitted; we must abort.
           */
           goto error;
+        }
+
+        if (thd->lex->contains_dynamic_sql() &&
+            thd->lex->first_not_own_table())
+        {
+          /*
+            We have just found out that the statement calls a routine
+            containing dynamic SQL, so it cannot be prelocked
+            (see Query_tables_list::requires_prelocking()), while the
+            prelocking algorithm has already collected some tables into
+            the table list. Throw the prelocking set away and start from
+            the beginning. The new pass does not collect anything, as
+            LEX::contains_dynamic_sql() is now set.
+          */
+          close_tables_for_reopen(thd, start, ot_ctx.start_of_statement_svp(),
+                                  true);
+
+          /* Re-open temporary tables after close_tables_for_reopen(). */
+          if (thd->open_temporary_tables(*start))
+            goto error;
+
+          sroutine_to_open= &thd->lex->sroutines_list.first;
+          goto restart;
         }
       }
     }
@@ -6064,6 +6136,20 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags)
   */
   if (! thd->locked_tables_mode)
   {
+    if ((thd->in_sub_stmt & SUB_STMT_TRIGGER) &&
+        thd->lex->contains_dynamic_sql())
+    {
+      /*
+        We're executing a trigger which calls a stored function
+        with prepared statements:
+          CREATE TRIGGER tr BEFORE INSERT ON t1
+            FOR EACH ROW SET NEW.b = sf_with_ps();
+        This combination is not allowed. Let's return with error from
+        here to avoid hitting the assert on thd->lock==0 below.
+      */
+      my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "Dynamic SQL");
+      DBUG_RETURN(TRUE);
+    }
     DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
     TABLE **start,**ptr;
     bool found_first_not_own= 0;
