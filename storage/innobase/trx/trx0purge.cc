@@ -40,6 +40,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "trx0trx.h"
 #include "dict0load.h"
+#include "debug_sync.h"
 #include <mysql/service_thd_mdl.h>
 #include <mysql/service_wsrep.h>
 #include "log.h"
@@ -145,6 +146,7 @@ void purge_sys_t::close()
 @return whether the history is purgeable */
 TRANSACTIONAL_TARGET bool purge_sys_t::is_purgeable(trx_id_t trx_id) const
 {
+  ut_ad(!latch.have_any()); /* nesting would hang on a writer */
   bool purgeable;
 #if !defined SUX_LOCK_GENERIC && !defined NO_ELISION
   purgeable= false;
@@ -1541,6 +1543,26 @@ TRANSACTIONAL_TARGET ulint trx_purge(ulint n_tasks, ulint history_size)
 
     trx_purge_close_tables(thd, nullptr, true);
   }
+
+#ifdef ENABLED_DEBUG_SYNC
+  /* Hold the batch open between its last purged record and the advance of
+  purge_sys.head and purge_sys.end_view, which is the window where a reader
+  that goes by end_view can still reach history this batch has removed. That
+  window is not otherwise addressable from a test, because it opens and closes
+  within this function.
+
+  Only a batch that purged something opens it, and parking one that did not
+  would stop the batch a test is waiting for. Whoever sets the keyword must
+  release the batch: until then it keeps this thread, and the undo pages the
+  batch handled. */
+  if (n_work)
+    DBUG_EXECUTE_IF("purge_hold_cleanup",
+                    debug_sync_set_action
+                    (current_thd,
+                     STRING_WITH_LEN("now SIGNAL purge_batch_parked "
+                                     "WAIT_FOR purge_batch_resume"));
+                    );
+#endif
 
   purge_sys.batch_cleanup(head);
 
