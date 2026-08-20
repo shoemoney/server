@@ -15,13 +15,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1335  USA */
 
 /**
-  @file
-  encryption service
+  @defgroup plugin_api_service_encryption Encryption service
+  @ingroup plugin_api_services
 
+  Encryption service
+  
   Functions to support data encryption and encryption key management.
   They are normally implemented in an encryption plugin, so this service
   connects encryption *consumers* (e.g. storage engines) to the encryption
   *provider* (encryption plugin).
+  @{
 */
 
 #ifndef MYSQL_ABI_CHECK
@@ -144,3 +147,5 @@ static inline int encryption_crypt(const unsigned char* src, unsigned int slen,
 
 #define MYSQL_SERVICE_ENCRYPTION_INCLUDED
 #endif
+
+/** @} */

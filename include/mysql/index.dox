@@ -6,7 +6,7 @@
   static loading of modules to add or modify server behavior without
   recompiling the core server.
 
-   - @ref concepts
+   - @subpage concepts
    - Get started: Building a plugin
    - Plugin types
    - Plugin services
@@ -101,15 +101,15 @@
   can call any individual plugin by name. E.g. when executing `CREATE TABLE engine=foo`, 
   the server will:
 
-   - look "foo" into the cache of plugin "references" (plugin_ref) for that plugin type, if available.
-   - If no cached reference is found:
-     + Take LOCK_plugin
-     + Look "foo" up into the global plugin_array for implementations of the specific plugin API (storage engine in this case)
-     + If found, create a reference (plugin_ref) to the plugin.
-   - call API "method" (function pointers) through the plugin_ref, if found.
-   - when done, either store the plugin_ref into a cache for reuse or release it.
+  - look "foo" into the cache of plugin "references" (plugin_ref) for that plugin type, if available.
+  - If no cached reference is found:
+      - Take LOCK_plugin
+      - Look "foo" up into the global plugin_array for implementations of the specific plugin API (storage engine in this case)
+      - If found, create a reference (plugin_ref) to the plugin.
+  - call API "method" (function pointers) through the plugin_ref, if found.
+  - when done, either store the plugin_ref into a cache for reuse or release it.
 
-  @section impl_plugin_library The Plugin library Implementation.
+  @section impl_plugin_library The Plugin library Implementation
 
   A @ref concept_plugin_library is executable code, either a part of
   the server itself or bundled as a shared library.
@@ -142,7 +142,7 @@
 
   At unload time the effect of plugin library load above is reversed.  
 
-  @subsection impl_plugin Plugin implementation
+  @section impl_plugin Plugin implementation
 
   A MariaDB plugin is a logical, versioned implementation of exactly two interfaces:
    - The base @ref st_maria_plugin plugin management interface

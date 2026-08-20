@@ -29,7 +29,7 @@
   @{
 */
 
-/*
+/**
   On Windows, exports from DLL need to be declared
   Also, plugin needs to be declared as extern "C" because MSVC 
   unlike other compilers, uses C++ mangling for variables not only
@@ -93,19 +93,19 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MARIA_PLUGIN_INTERFACE_VERSION 0x0110
 
 /**
-  The allowable types of plugins
   @defgroup plugin_types Plugin Types
+  The allowable types of plugins
   @{
 */
 #define MYSQL_UDF_PLUGIN             0  /**< not implemented            */
-#define MYSQL_STORAGE_ENGINE_PLUGIN  1
+#define MYSQL_STORAGE_ENGINE_PLUGIN  1  /**< Storage engine plugin      */
 #define MYSQL_FTPARSER_PLUGIN        2  /**< Full-text parser plugin    */
-#define MYSQL_DAEMON_PLUGIN          3
-#define MYSQL_INFORMATION_SCHEMA_PLUGIN  4
-#define MYSQL_AUDIT_PLUGIN           5
-#define MYSQL_REPLICATION_PLUGIN     6
-#define MYSQL_AUTHENTICATION_PLUGIN  7
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    12  /**< The number of plugin types */
+#define MYSQL_DAEMON_PLUGIN          3  /**< Daemon plugin              */
+#define MYSQL_INFORMATION_SCHEMA_PLUGIN  4  /**< Information schema plugin */
+#define MYSQL_AUDIT_PLUGIN           5  /**< Audit plugin               */
+#define MYSQL_REPLICATION_PLUGIN     6  /**< Replication plugin         */
+#define MYSQL_AUTHENTICATION_PLUGIN  7  /**< Authentication plugin      */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    12
 
 /* MariaDB plugin types */
 /** Client and server password validation */
@@ -119,6 +119,11 @@ typedef struct st_mysql_xid MYSQL_XID;
 
 /** @} */
 
+/**
+  @defgroup plugin_license Plugin License
+  The allowable licenses for plugins
+  @{
+*/
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0
 #define PLUGIN_LICENSE_GPL 1
@@ -127,7 +132,14 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define PLUGIN_LICENSE_PROPRIETARY_STRING "PROPRIETARY"
 #define PLUGIN_LICENSE_GPL_STRING "GPL"
 #define PLUGIN_LICENSE_BSD_STRING "BSD"
+/** @} */
 
+
+/**
+  @defgroup plugin_maturity Plugin Maturity
+  The allowable code maturity levels for plugins
+  @{
+*/
 /* definitions of code maturity for plugins */
 #define MariaDB_PLUGIN_MATURITY_UNKNOWN 0
 #define MariaDB_PLUGIN_MATURITY_EXPERIMENTAL 1
@@ -135,11 +147,14 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MariaDB_PLUGIN_MATURITY_BETA 3
 #define MariaDB_PLUGIN_MATURITY_GAMMA 4
 #define MariaDB_PLUGIN_MATURITY_STABLE 5
+/** @} */
 
-/*
+/**
+  @defgroup plugin_declaration Plugin Declaration
   Macros for beginning and ending plugin declarations.  Between
   mysql_declare_plugin and mysql_declare_plugin_end there should
   be a st_mysql_plugin struct for each plugin to be declared.
+  @{
 */
 
 
@@ -191,7 +206,14 @@ MARIA_DECLARE_PLUGIN__(NAME, \
 #define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0,0}}
 #define maria_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0,0}}
 
-/*
+/** @} */
+
+/**
+  @defgroup plugin_status_vars Plugin Status Variables
+  @{
+ */
+
+/**
   declarations for SHOW STATUS support in plugins
 */
 enum enum_mysql_show_type
@@ -203,11 +225,14 @@ enum enum_mysql_show_type
   SHOW_SIZE_T, SHOW_always_last
 };
 
-/* backward compatibility mapping. */
+/** backward compatibility mapping to SHOW_UINT */
 #define SHOW_INT      SHOW_UINT
+/** backward compatibility mapping to SHOW_ULONG */
 #define SHOW_LONG     SHOW_ULONG
+/** backward compatibility mapping to SHOW_ULONGLONG */
 #define SHOW_LONGLONG SHOW_ULONGLONG
 
+/** SHOW STATUS scope */
 enum enum_var_type
 {
   SHOW_OPT_DEFAULT= 0, SHOW_OPT_SESSION, SHOW_OPT_GLOBAL, SHOW_OPT_SESSION_NO_LOCK
@@ -236,17 +261,24 @@ struct st_mysql_show_var SHOW_FUNC_ENTRY(const char *name,
   return tmp;
 };
 
+/** @} */
 
-/*
+
+/**
+  @defgroup plugin_flags Plugin Flags
   Constants for plugin flags.
+  @{
  */
 
 #define PLUGIN_OPT_NO_INSTALL   1UL   /**< Not dynamically loadable */
 #define PLUGIN_OPT_NO_UNINSTALL 2UL   /**< Not dynamically unloadable */
 
+/** @} */
 
-/*
-  declarations for server variables and command line options
+/**
+  @defgroup plugin_sys_vars Plugin System Variables
+  Declarations for server variables and command line options.
+  @{
 */
 
 
@@ -273,16 +305,13 @@ struct st_mysql_sys_var;
 struct st_mysql_value;
 
 /**
-  SYNOPSIS
-    (*mysql_var_check_func)()
-      thd               thread handle
-      var               dynamic variable being altered
-      save              pointer to temporary storage
-      value             user provided value
-  RETURN
-    0   user provided value is OK and the update func may be called.
-    any other value indicates error.
-  
+  @param thd         thread handle
+  @param var         dynamic variable being altered
+  @param save        pointer to temporary storage
+  @param value       user provided value
+  @retval 0   user provided value is OK and the update func may be called.
+  @retval any other value indicates error.
+
   This function should parse the user provided value and store in the
   provided temporary storage any data as required by the update func.
   There is sufficient space in the temporary storage to store a double.
@@ -296,14 +325,10 @@ typedef int (*mysql_var_check_func)(MYSQL_THD thd,
                                     void *save, struct st_mysql_value *value);
 
 /**
-  SYNOPSIS
-    (*mysql_var_update_func)()
-      thd               thread handle
-      var               dynamic variable being altered
-      var_ptr           pointer to dynamic variable
-      save              pointer to temporary storage
-   RETURN
-     NONE
+  @param thd               thread handle
+  @param var               dynamic variable being altered
+  @param var_ptr           pointer to dynamic variable
+  @param save              pointer to temporary storage
    
    This function should use the validated value stored in the temporary store
    and persist it in the provided pointer to the dynamic variable.
@@ -314,8 +339,11 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
                                       void *var_ptr, const void *save);
 
 
-/* the following declarations are for internal use only */
-
+/** 
+  @defgroup internal_plugin_vars Internal Only declarations for plugin system variables 
+   The following declarations are for internal use only
+   @{
+*/
 
 #define PLUGIN_VAR_MASK \
         (PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | \
@@ -393,10 +421,7 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
   TYPELIB *typelib;             \
 } MYSQL_SYSVAR_NAME(name)
 
-
-/*
-  the following declarations are for use by plugin implementors
-*/
+/** @} */
 
 #define MYSQL_SYSVAR_BOOL(name, varname, opt, comment, check, update, def) \
 DECLARE_MYSQL_SYSVAR_BASIC(name, char) = { \
@@ -539,6 +564,7 @@ DECLARE_MYSQL_THDVAR_SIMPLE(name, double) = { \
 #define THDVAR(thd, name) \
   (*(MYSQL_SYSVAR_NAME(name).resolve(thd, MYSQL_SYSVAR_NAME(name).offset)))
 
+  /** @}  */
 
 /**
   Plugin description structure.
@@ -602,16 +628,17 @@ struct st_maria_plugin
 */
 #include "plugin_ftparser.h"
 
-/*************************************************************************
-  API for Storage Engine plugin. (MYSQL_DAEMON_PLUGIN)
+/**
+   @defgroup daemon_plugin_data Daemon Plugin Data
+   API for Storage Engine plugin. (MYSQL_DAEMON_PLUGIN)
+   @{
 */
 
-/* daemon plugins of different MySQL releases are incompatible */
+/** daemon plugins of different MySQL releases are incompatible */
 #define MYSQL_DAEMON_INTERFACE_VERSION (MYSQL_VERSION_ID << 8)
 
-/*
-  Here we define only the descriptor structure, that is referred from
-  st_mysql_plugin.
+/**
+   The descriptor structure, that is referred from st_mysql_plugin.
 */
 
 struct st_mysql_daemon
@@ -619,17 +646,19 @@ struct st_mysql_daemon
   int interface_version;
 };
 
+/** @} */
 
-/*************************************************************************
+/**
+  @defgroup information_schema_plugin_data Information Schema Plugin Data
   API for I_S plugin. (MYSQL_INFORMATION_SCHEMA_PLUGIN)
+  @{
 */
 
-/* information schema plugins different MySQL releases are incompatible */
+/** information schema plugins of different MySQL releases are incompatible */
 #define MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION (MYSQL_VERSION_ID << 8)
 
-/*
-  Here we define only the descriptor structure, that is referred from
-  st_mysql_plugin.
+/**
+   The descriptor structure, that is referred from st_mysql_plugin.
 */
 
 struct st_mysql_information_schema
@@ -637,18 +666,22 @@ struct st_mysql_information_schema
   int interface_version;
 };
 
+/** @} */
 
-/*************************************************************************
+
+/**
+  @defgroup storage_engine_plugin_data Storage Engine Plugin Data
   API for Storage Engine plugin. (MYSQL_STORAGE_ENGINE_PLUGIN)
+  @{
 */
 
-/* storage engines of different MySQL releases are incompatible */
+/** storage engines of different MySQL releases are incompatible */
 #define MYSQL_HANDLERTON_INTERFACE_VERSION (MYSQL_VERSION_ID << 8)
 
-/*
-  The real API is in the sql/handler.h
-  Here we define only the descriptor structure, that is referred from
-  st_mysql_plugin.
+/**
+   The real API is in the sql/handler.h
+   Here we define only the descriptor structure, that is referred from
+   st_mysql_plugin.
 */
 
 struct st_mysql_storage_engine
@@ -658,9 +691,12 @@ struct st_mysql_storage_engine
 
 struct transaction_participant;
 
+/** @} */
 
-/*
+/**
+  @defgroup replication_plugin_data Replication Plugin Data
   API for Replication plugin. (MYSQL_REPLICATION_PLUGIN)
+  @{
 */
  #define MYSQL_REPLICATION_INTERFACE_VERSION 0x0200
  
@@ -671,11 +707,18 @@ struct transaction_participant;
    int interface_version;
  };
 
+/** @} */
+
+/**
+  @addtogroup plugin_sys_vars
+  @{ 
+*/
+
 #define MYSQL_VALUE_TYPE_STRING 0
 #define MYSQL_VALUE_TYPE_REAL   1
 #define MYSQL_VALUE_TYPE_INT    2
 
-/*************************************************************************
+/**
   st_mysql_value struct for reading values from mysqld.
   Used by server variables framework to parse user-provided values.
   Will be used for arguments when implementing UDFs.
@@ -694,10 +737,7 @@ struct st_mysql_value
   int (*is_unsigned)(struct st_mysql_value *);
 };
 
-
-/*************************************************************************
-  Miscellaneous functions for plugin implementors
-*/
+/** @} */
 
 #ifdef __cplusplus
 extern "C" {

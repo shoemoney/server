@@ -20,11 +20,11 @@ extern "C" {
 #endif
 
 /**
-  A set of services provided by the server to plugins. These services are
-  available to plugins that are linked into the server, and to dynamic plugins
-  that are loaded at runtime.  The services are provided through a set of
-  function pointers that are initialized when the plugin is loaded.
   @defgroup plugin_api_services Plugin Services
+  @ingroup plugin_api
+
+  A set of services provided by the server to plugins.
+  @sa @ref impl_server_plugin_services
 */
 
 #include <mysql/service_base64.h>
