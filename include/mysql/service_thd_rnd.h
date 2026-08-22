@@ -33,12 +33,13 @@ extern "C" {
 
 extern struct thd_rnd_service_st {
   double (*thd_rnd_ptr)(MYSQL_THD thd);
-  void   (*thd_c_r_p_ptr)(MYSQL_THD thd, char *to, size_t length);
+  char *(*thd_g_s_n_ptr)(MYSQL_THD thd, size_t n, unsigned char cmin,
+                                                  unsigned char cmax);
 } *thd_rnd_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 #define thd_rnd(A) thd_rnd_service->thd_rnd_ptr(A)
-#define thd_create_random_password(A,B,C) thd_rnd_service->thd_c_r_p_ptr(A,B,C)
+#define thd_get_session_nonce(A,B,C,D) thd_rnd_service->thd_g_s_n_ptr(A,B,C,D)
 #else
 
 double thd_rnd(MYSQL_THD thd);
@@ -50,7 +51,8 @@ double thd_rnd(MYSQL_THD thd);
                       long; result string is always null-terminated
   @param length[in]   How many random characters to put in buffer
 */
-void thd_create_random_password(MYSQL_THD thd, char *to, size_t length);
+char *thd_get_session_nonce(MYSQL_THD thd, size_t n, unsigned char cmin,
+                                                     unsigned char cmax);
 
 #endif
 

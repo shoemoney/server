@@ -4425,7 +4425,7 @@ public:
   }
 
   /* scramble - random string sent to client on handshake */
-  char	     scramble[SCRAMBLE_LENGTH+1];
+  char	     scramble[SCRAMBLE_LENGTH_MAX+1];
 
   /*
     If this is a slave, the name of the connection stored here.

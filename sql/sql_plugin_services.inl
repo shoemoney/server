@@ -129,7 +129,7 @@ static struct thd_autoinc_service_st thd_autoinc_handler= {
 
 static struct thd_rnd_service_st thd_rnd_handler= {
   thd_rnd,
-  thd_create_random_password
+  thd_get_session_nonce
 };
 
 static struct base64_service_st base64_handler= {

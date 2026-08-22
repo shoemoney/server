@@ -409,10 +409,12 @@ char *thd_get_error_context_description(THD* thd,
 extern "C" {
 extern struct thd_rnd_service_st {
   double (*thd_rnd_ptr)(THD* thd);
-  void (*thd_c_r_p_ptr)(THD* thd, char *to, size_t length);
+  char *(*thd_g_s_n_ptr)(THD* thd, size_t n, unsigned char cmin,
+                                                  unsigned char cmax);
 } *thd_rnd_service;
 double thd_rnd(THD* thd);
-void thd_create_random_password(THD* thd, char *to, size_t length);
+char *thd_get_session_nonce(THD* thd, size_t n, unsigned char cmin,
+                                                     unsigned char cmax);
 }
 extern "C" {
 typedef int MYSQL_THD_KEY_T;

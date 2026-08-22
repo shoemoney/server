@@ -15499,7 +15499,6 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
 
   THD *thd= mpvio->auth_info.thd;
   char *buff= (char *) my_alloca(1 + SERVER_VERSION_LENGTH + 1 + data_len + 64);
-  char scramble_buf[SCRAMBLE_LENGTH];
   char *end= buff;
   DBUG_ENTER("send_server_handshake_packet");
 
@@ -15517,38 +15516,17 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
     thd->client_capabilities |= CLIENT_SSL;
   }
 
+  if (thd->scramble[SCRAMBLE_LENGTH_MAX])
+    thd_get_session_nonce(thd, SCRAMBLE_LENGTH_MAX, 1, 255);
   if (data_len)
   {
     mpvio->cached_server_packet.pkt= (char*)thd->memdup(data, data_len);
     mpvio->cached_server_packet.pkt_len= data_len;
+    set_if_bigger(data_len, SCRAMBLE_LENGTH);
   }
-
-  if (data_len < SCRAMBLE_LENGTH)
+  else
   {
-    if (data_len)
-    {
-      /*
-        the first packet *must* have at least 20 bytes of a scramble.
-        if a plugin provided less, we pad it to 20 with zeros
-      */
-      memcpy(scramble_buf, data, data_len);
-      bzero(scramble_buf + data_len, SCRAMBLE_LENGTH - data_len);
-      data= scramble_buf;
-    }
-    else
-    {
-      /*
-        if the default plugin does not provide the data for the scramble at
-        all, we generate a scramble internally anyway, just in case the
-        user account (that will be known only later) uses a
-        native_password_plugin (which needs a scramble). If we don't send a
-        scramble now - wasting 20 bytes in the packet -
-        native_password_plugin will have to send it in a separate packet,
-        adding one more round trip.
-      */
-      thd_create_random_password(thd, thd->scramble, SCRAMBLE_LENGTH);
-      data= thd->scramble;
-    }
+    data= thd->scramble;
     data_len= SCRAMBLE_LENGTH;
   }
 
@@ -16657,10 +16635,11 @@ static void make_ssl_info(THD *thd, LEX_CSTRING salt, char *info)
   */
   *info++= 1; // Version 1
 
-  DBUG_ASSERT(thd->scramble[SCRAMBLE_LENGTH] == 0);
+  DBUG_ASSERT(thd->scramble[SCRAMBLE_LENGTH_MAX] == 0);
 
   LEX_CUSTRING fp= ssl_acceptor_fingerprint();
-  my_sha256_multi(digest, salt.str, salt.length, thd->scramble,
+  my_sha256_multi(digest, salt.str, salt.length,
+                  thd->scramble + SCRAMBLE_LENGTH_MAX - SCRAMBLE_LENGTH,
                   (size_t)SCRAMBLE_LENGTH, fp.str, fp.length, NULL);
   octet2hex(info, digest, sizeof(digest));
 
@@ -16802,7 +16781,7 @@ bool acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   else
   {
     /* mark the thd as having no scramble yet */
-    thd->scramble[SCRAMBLE_LENGTH]= 1;
+    thd->scramble[SCRAMBLE_LENGTH_MAX]= 1;
 
     /*
       perform the first authentication attempt, with the default plugin.
@@ -17085,14 +17064,14 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   int pkt_len;
   MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
   THD *thd=info->thd;
+  char *scramble;
   DBUG_ENTER("native_password_authenticate");
 
-  /* generate the scramble, or reuse the old one */
-  if (thd->scramble[SCRAMBLE_LENGTH])
-    thd_create_random_password(thd, thd->scramble, SCRAMBLE_LENGTH);
+  /* generate the scramble */
+  scramble= thd_get_session_nonce(thd, SCRAMBLE_LENGTH, 33, 126);
 
   /* and send it to the client */
-  if (mpvio->write_packet(mpvio, (uchar*)thd->scramble, SCRAMBLE_LENGTH + 1))
+  if (mpvio->write_packet(mpvio, (uchar*)scramble, SCRAMBLE_LENGTH + 1))
     DBUG_RETURN(CR_AUTH_HANDSHAKE);
 
   /* reply and authenticate */
@@ -17153,7 +17132,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (info->auth_string_length != SCRAMBLE_LENGTH)
       DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
 
-    if (check_scramble(pkt, thd->scramble, (uchar*)info->auth_string))
+    if (check_scramble(pkt, scramble, (uchar*)info->auth_string))
       DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
     else
       DBUG_RETURN(CR_OK);
@@ -17228,13 +17207,13 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   uchar *pkt;
   int pkt_len;
   MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
+  char *scramble;
   THD *thd=info->thd;
 
-  /* generate the scramble, or reuse the old one */
-  if (thd->scramble[SCRAMBLE_LENGTH])
-    thd_create_random_password(thd, thd->scramble, SCRAMBLE_LENGTH);
+  /* generate the scramble */
+  scramble= thd_get_session_nonce(thd, SCRAMBLE_LENGTH, 33, 126);
   /* and send it to the client */
-  if (mpvio->write_packet(mpvio, (uchar*)thd->scramble, SCRAMBLE_LENGTH + 1))
+  if (mpvio->write_packet(mpvio, (uchar*)scramble, SCRAMBLE_LENGTH + 1))
     return CR_AUTH_HANDSHAKE;
 
   /* read the reply and authenticate */
@@ -17266,7 +17245,7 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (!info->auth_string_length)
       return CR_AUTH_USER_CREDENTIALS;
 
-    return check_scramble_323(pkt, thd->scramble, (ulong *) info->auth_string)
+    return check_scramble_323(pkt, scramble, (ulong *) info->auth_string)
              ? CR_AUTH_USER_CREDENTIALS : CR_OK;
   }
 

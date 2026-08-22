@@ -299,7 +299,9 @@ int auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
     uchar start[1];
   } scramble_pair;
 
-  my_random_bytes(scramble_pair.server, CHALLENGE_SCRAMBLE_LENGTH);
+  char *thd_scramble= thd_get_session_nonce(get_current_thd(),
+                                            CHALLENGE_SCRAMBLE_LENGTH, 0, 255);
+  memcpy(scramble_pair.server, thd_scramble, CHALLENGE_SCRAMBLE_LENGTH);
 
   if (vio->write_packet(vio, scramble_pair.server, sizeof(scramble_pair.server)))
     return CR_ERROR;

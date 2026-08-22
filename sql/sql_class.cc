@@ -5369,12 +5369,19 @@ extern "C" double thd_rnd(MYSQL_THD thd)
                       long; result string is always null-terminated
   @param length[in]   How many random characters to put in buffer
 */
-extern "C" void thd_create_random_password(MYSQL_THD thd,
-                                           char *to, size_t length)
+extern "C" char *thd_get_session_nonce(MYSQL_THD thd, size_t n,
+                                        uchar cmin, uchar cmax)
 {
-  for (char *end= to + length; to < end; to++)
-    *to= (char) (my_rnd(&thd->rand)*94 + 33);
-  *to= '\0';
+  if (n < SCRAMBLE_LENGTH || n > SCRAMBLE_LENGTH_MAX)
+    return 0;
+  char *to= thd->scramble, *end= to + SCRAMBLE_LENGTH_MAX;
+  if (*end)
+  {
+    while (to < end)
+      *to++= (char) (thd_rnd(thd)*(cmax-cmin+1) + cmin);
+    *end= 0;
+  }
+  return end - n;
 }
 
 
