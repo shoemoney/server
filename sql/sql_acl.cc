@@ -88,9 +88,21 @@ static Lex_ident_plugin native_password_plugin_name=
 static Lex_ident_plugin old_password_plugin_name=
   "mysql_old_password"_Lex_ident_plugin;
 
-
-/// @todo make it configurable
-LEX_CSTRING *default_auth_plugin_name= &native_password_plugin_name;
+struct plugin_stat : public Sql_alloc
+{
+  plugin_stat(const LEX_CSTRING &name) : name(name) {}
+  LEX_CSTRING name;
+  ulonglong used= 1;
+  static const uchar *get_key(const void *self_, size_t *len, my_bool)
+  {
+    auto self=static_cast<const plugin_stat*>(self_);
+    *len= self->name.length;
+    return (const uchar*)(self->name.str);
+  }
+};
+static plugin_stat native_password_plugin_stats(native_password_plugin_name);
+static plugin_stat *most_used_plugin= &native_password_plugin_stats;
+static Hash_set<plugin_stat> *plugin_stats;
 
 /*
   Wildcard host, matches any hostname
@@ -3282,6 +3294,9 @@ bool acl_init(bool dont_read_acl_tables)
                                       0, acl_entry_get_key, my_free,
                                       &my_charset_utf8mb3_bin);
 
+  plugin_stats= new Hash_set<plugin_stat>(key_memory_acl_mem,
+                                    plugin_stat::get_key, &my_charset_latin1);
+
   /*
     cache built-in native authentication plugin,
     to avoid hash searches and a global mutex lock on every connect
@@ -3709,6 +3724,8 @@ void acl_free(bool end)
   else
   {
     plugin_unlock(0, native_password_plugin);
+    delete plugin_stats;
+    plugin_stats= 0;
     delete acl_cache;
     acl_cache=0;
   }
@@ -3814,6 +3831,10 @@ bool acl_reload(THD *thd)
     delete_dynamic(&old_acl_proxy_users);
     my_hash_free(&old_acl_roles_mappings);
   }
+  most_used_plugin= &native_password_plugin_stats;
+  most_used_plugin->used= 1;
+  plugin_stats->clear();
+  plugin_stats->insert(most_used_plugin);
   mysql_mutex_unlock(&acl_cache->lock);
 end:
   close_mysql_tables(thd);
@@ -15731,7 +15752,24 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
   ACL_USER *user= find_user_or_anon(sctx->host, sctx->user, sctx->ip);
 
   if (user && !user->dont_accept_new_connections())
+  {
+    if (user->nauth && user->auth[0].plugin.length)
+    {
+      LEX_CSTRING name= user->auth[0].plugin;
+      struct plugin_stat *plugin= plugin_stats->find(name.str, name.length);
+      if (plugin)
+      {
+        if (++plugin->used > most_used_plugin->used)
+          most_used_plugin= plugin;
+      }
+      else
+      {
+        plugin= new (&acl_memroot) plugin_stat(name);
+        plugin_stats->insert(plugin);
+      }
+    }
     mpvio->acl_user= user->copy(mpvio->auth_info.thd->mem_root);
+  }
 
   mysql_mutex_unlock(&acl_cache->lock);
 
@@ -16653,6 +16691,13 @@ static int do_auth_once(THD *thd, const LEX_CSTRING *auth_plugin_name,
   bool unlock_plugin= false;
   plugin_ref plugin= get_auth_plugin(thd, *auth_plugin_name, &unlock_plugin);
 
+  /* if there's no user we use most_used_plugin, it can be uninstalled */
+  if (!plugin && !thd->security_ctx->user)
+  {
+    plugin= native_password_plugin;
+    unlock_plugin= false;
+  }
+
   mpvio->plugin= plugin;
   mpvio->auth_info.user_name= NULL;
 
@@ -16790,7 +16835,7 @@ bool acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       the correct plugin.
     */
 
-    res= do_auth_once(thd, default_auth_plugin_name, &mpvio);
+    res= do_auth_once(thd, &most_used_plugin->name, &mpvio);
   }
 
   PSI_CALL_set_connection_type(vio_type(thd->net.vio));

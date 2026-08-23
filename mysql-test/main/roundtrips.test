@@ -28,7 +28,16 @@ set password for u@'%' = password("pwd3");
 --connection default
 
 --echo #  4. nossl parsec
+flush privileges;
 create or replace user u@'%' identified with parsec using password("pwd4");
+--exec $counter
+--connect u,127.0.0.1,u,pwd4,,$port,,NOSSL
+--disconnect u
+--exec flock $report cat $report
+--exec $counter
+--connect u,127.0.0.1,u,pwd4,,$port,,NOSSL
+--disconnect u
+--exec flock $report cat $report
 --exec $counter
 --connect u,127.0.0.1,u,pwd4,,$port,,NOSSL
 --disconnect u
@@ -51,6 +60,7 @@ create or replace user u@'%' identified with parsec using password("pwd5");
 --connection default
 
 --echo #  7. native->native change user
+flush privileges;
 create or replace user u@'%' identified with mysql_native_password using password("pwd7");
 create or replace user u2@'%' identified with mysql_native_password using password("dwp7");
 --exec $counter
