@@ -27,6 +27,13 @@
 
 #include <mysql/plugin.h>
 
+/**
+   @defgroup authentication_plugin Authentication Plugin
+   @ingroup plugin_types
+   API for Authentication plugin. (MYSQL_AUTHENTICATION_PLUGIN)
+   @{
+*/
+
 #define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0203
 
 #include <mysql/plugin_auth_common.h>
@@ -35,12 +42,16 @@
 extern "C" {
 #endif
 
-/* defines for MYSQL_SERVER_AUTH_INFO.password_used */
+/** 
+  @defgroup authentication_plugin_password_used Values for st_mysql_server_auth_info.password_used
+  @{
+*/
 
 #define PASSWORD_USED_NO         0
 #define PASSWORD_USED_YES        1
 #define PASSWORD_USED_NO_MENTION 2
 
+/** @} */
 
 /**
   Provides server plugin access to authentication information
@@ -86,12 +97,15 @@ typedef struct st_mysql_server_auth_info
   char external_user[MYSQL_USERNAME_LENGTH+1];
 
   /**
-    This only affects the "Authentication failed. Password used: %s"
-    error message. has the following values : 
-    0 : %s will be NO.
-    1 : %s will be YES.
-    2 : there will be no %s.
+    This only affects the "Authentication failed. Password used: @%s"
+    error message. has the following values: 
+    - PASSWORD_USED_NO: @%s will be NO.
+    - PASSWORD_USED_YES: @%s will be YES.
+    - PASSWORD_USED_NO_MENTION: there will be no @%s.
+    
     Set it as appropriate or ignore at will.
+
+    @sa authentication_plugin_password_used
   */
   int  password_used;
 
@@ -178,6 +192,8 @@ struct st_mysql_auth
 #ifdef __cplusplus
 }
 #endif
+
+/** @} */
 
 #endif
 

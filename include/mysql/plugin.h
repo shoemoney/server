@@ -121,6 +121,7 @@ typedef struct st_mysql_xid MYSQL_XID;
 
 /**
   @defgroup plugin_license Plugin License
+  @ingroup plugin_declaration
   The allowable licenses for plugins
   @{
 */
@@ -137,6 +138,7 @@ typedef struct st_mysql_xid MYSQL_XID;
 
 /**
   @defgroup plugin_maturity Plugin Maturity
+  @ingroup plugin_declaration
   The allowable code maturity levels for plugins
   @{
 */
@@ -266,6 +268,7 @@ struct st_mysql_show_var SHOW_FUNC_ENTRY(const char *name,
 
 /**
   @defgroup plugin_flags Plugin Flags
+  @ingroup plugin_declaration
   Constants for plugin flags.
   @{
  */
@@ -629,7 +632,8 @@ struct st_maria_plugin
 #include "plugin_ftparser.h"
 
 /**
-   @defgroup daemon_plugin_data Daemon Plugin Data
+   @defgroup daemon_plugin_data Daemon Plugin
+   @ingroup plugin_types
    API for Storage Engine plugin. (MYSQL_DAEMON_PLUGIN)
    @{
 */
@@ -649,7 +653,8 @@ struct st_mysql_daemon
 /** @} */
 
 /**
-  @defgroup information_schema_plugin_data Information Schema Plugin Data
+  @defgroup information_schema_plugin_data Information Schema Plugin
+  @ingroup plugin_types
   API for I_S plugin. (MYSQL_INFORMATION_SCHEMA_PLUGIN)
   @{
 */
@@ -670,7 +675,8 @@ struct st_mysql_information_schema
 
 
 /**
-  @defgroup storage_engine_plugin_data Storage Engine Plugin Data
+  @defgroup storage_engine_plugin_data Storage Engine Plugin
+  @ingroup plugin_types
   API for Storage Engine plugin. (MYSQL_STORAGE_ENGINE_PLUGIN)
   @{
 */
@@ -694,7 +700,8 @@ struct transaction_participant;
 /** @} */
 
 /**
-  @defgroup replication_plugin_data Replication Plugin Data
+  @defgroup replication_plugin_data Replication Plugin
+  @ingroup plugin_types
   API for Replication plugin. (MYSQL_REPLICATION_PLUGIN)
   @{
 */

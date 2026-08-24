@@ -24,6 +24,12 @@
 */
 #define MYSQL_CLIENT_PLUGIN_INCLUDED
 
+
+/** 
+  @defgroup plugin_client_api Client Plugin API
+  API for plugins that work on the client side
+  @{
+*/
 /*
   On Windows, exports from DLL need to be declared
   Also, plugin needs to be declared as extern "C" because MSVC 
@@ -185,5 +191,7 @@ mysql_client_register_plugin(struct st_mysql *mysql,
 **/
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
+
+/** @} */
 #endif
 

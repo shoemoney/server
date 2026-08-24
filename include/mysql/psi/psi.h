@@ -104,6 +104,7 @@ struct sql_digest_storage;
   Performance schema instrumentation interface.
 
   @defgroup Instrumentation_interface Instrumentation Interface
+  @ingroup plugin_api
   @{
 */
 

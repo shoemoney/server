@@ -27,11 +27,17 @@
 */
 #define MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
 
+/**
+  @addtogroup authentication_plugin
+  @{
+*/
+
 /** the max allowed length for a user name */
 #define MYSQL_USERNAME_LENGTH 512
 
 /**
-  return values of the plugin authenticate_user() method.
+  @defgroup authentication_plugin_return_codes Return codes for the plugin authenticate_user() method
+  @{ 
 */
 
  /**
@@ -90,6 +96,7 @@
 */
 #define CR_OK_HANDSHAKE_COMPLETE -2
 
+/** @} */
 typedef struct st_plugin_vio_info
 {
   enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,
@@ -129,6 +136,8 @@ typedef struct st_plugin_vio
   void (*info)(struct st_plugin_vio *vio, struct st_plugin_vio_info *info);
 
 } MYSQL_PLUGIN_VIO;
+
+/** @} */
 
 #endif
 
