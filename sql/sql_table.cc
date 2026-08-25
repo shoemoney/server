@@ -15453,10 +15453,9 @@ bool fk_handle_rename(THD *thd, TABLE_LIST *old_table, const Lex_ident_db *new_d
   if (share->fk_write_shadow_frm(thd))
     return true;
 
-  // NB: share is closed before rename, we can't store it into fk_rename_backup
-  fk_rename_backup.push_back({{old_table->db, old_table->table_name},
-                              {*new_db, *new_table_name}});
-
+  if (fk_rename_backup.push_back({{old_table->db, old_table->table_name},
+                                {*new_db, *new_table_name}}))
+    goto mem_error;
   if (tables.empty())
     return false;
 
