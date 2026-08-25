@@ -1761,7 +1761,7 @@ rule:
         using_list opt_use_partition use_partition
 
 %type <key_part>
-        key_part key_part_simple
+        key_part key_part_simple multi_valued_key_part
 
 %type <table_list>
         join_table_list  join_table
@@ -7636,6 +7636,7 @@ opt_without_overlaps:
 
 key_part:
           key_part_simple
+        | multi_valued_key_part
         | ident '(' NUM ')'
           {
             int key_part_len= atoi($3.str);
@@ -7644,6 +7645,36 @@ key_part:
             $$= new (thd->mem_root) Key_part_spec(&$1, (uint) key_part_len);
             if (unlikely($$ == NULL))
               MYSQL_YYABORT;
+          }
+        ;
+
+multi_valued_key_part:
+          '(' CAST_SYM '(' expr AS cast_type ARRAY_SYM ')' ')'
+          {
+            /* Create a Create_field */
+            Create_field *f= new (thd->mem_root) Create_field();
+            LEX_CSTRING fname= make_internal_field_name(thd, "DB_MVI_", &Lex->alter_info.create_list);
+
+            if (unlikely(!f))
+              MYSQL_YYABORT;
+
+            f->invisible= INVISIBLE_FULL;
+            Lex->last_key->invisible= true;
+            f->set_handler(&type_handler_blob);
+            f->charset= &my_charset_latin1_bin;
+            Lex->last_key->type= Key::FULLTEXT;
+            Lex->last_key->key_create_info.parser_name= {STRING_WITH_LEN("ft_mv")};
+            Lex->init_last_field(f, &fname);
+            Lex->alter_info.create_list.push_back(f, thd->mem_root);
+
+            /* Create a vcol */
+            Virtual_column_info *v= add_virtual_expression(thd, $4);
+            if (unlikely(!v))
+              MYSQL_YYABORT;
+            Lex->last_field->vcol_info= v;
+            Lex->last_field->vcol_info->set_vcol_type(VCOL_GENERATED_STORED);
+
+            $$= new (thd->mem_root) Key_part_spec(&fname, 0, /*gen=*/true);
           }
         ;
 
